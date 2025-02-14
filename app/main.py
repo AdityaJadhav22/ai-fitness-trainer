@@ -7,6 +7,8 @@ import base64
 import cv2
 import mediapipe as mp
 import numpy as np
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+import av
 
 # Must be the first Streamlit command
 st.set_page_config(
@@ -287,38 +289,28 @@ mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_draw = mp.solutions.drawing_utils
 
-def initialize_camera():
-    try:
-        # Try different camera indices
-        for index in [0, 1, -1]:
-            cap = cv2.VideoCapture(index)
-            if cap.isOpened():
-                return cap
+class PoseProcessor(VideoProcessorBase):
+    def recv(self, frame):
+        img = frame.to_ndarray(format="bgr24")
         
-        st.error("No camera found! Please check your camera connection.")
-        return None
-    except Exception as e:
-        st.error(f"Error accessing camera: {str(e)}")
-        return None
-
-def process_frame(frame):
-    # Convert BGR to RGB
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    
-    # Process the frame and detect poses
-    results = pose.process(rgb_frame)
-    
-    # Draw pose landmarks
-    if results.pose_landmarks:
-        mp_draw.draw_landmarks(
-            rgb_frame, 
-            results.pose_landmarks, 
-            mp_pose.POSE_CONNECTIONS,
-            mp_draw.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
-            mp_draw.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
-        )
-    
-    return rgb_frame
+        # Convert BGR to RGB
+        rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # Process the frame and detect poses
+        results = pose.process(rgb_frame)
+        
+        # Draw pose landmarks
+        if results.pose_landmarks:
+            mp_draw.draw_landmarks(
+                rgb_frame, 
+                results.pose_landmarks, 
+                mp_pose.POSE_CONNECTIONS,
+                mp_draw.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+                mp_draw.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+            )
+        
+        # Convert back to BGR for display
+        return av.VideoFrame.from_ndarray(cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR), format="bgr24")
 
 def format_time(seconds):
     """Convert seconds to MM:SS format"""
@@ -417,63 +409,26 @@ def add_bg_from_local():
 def main():
     st.title("AI Fitness Trainer")
     
-    # Add a camera selector
-    camera_index = st.selectbox("Select Camera", options=[0, 1, 2, 3], index=0)
-    
-    # Initialize camera with selected index
-    cap = cv2.VideoCapture(camera_index)
-    
-    if not cap.isOpened():
-        st.error(f"Could not open camera {camera_index}")
-        st.info("Please try a different camera index")
-        return
-    
-    # Create a placeholder for the video feed
-    frame_placeholder = st.empty()
-    
-    # Add control buttons
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        start_button = st.button("Start")
-    with col2:
-        stop_button = st.button("Stop")
-    with col3:
-        reset_button = st.button("Reset Camera")
-    
-    while start_button and not stop_button:
-        ret, frame = cap.read()
-        
-        if not ret:
-            st.error("Failed to read from camera!")
-            break
-            
-        # Process the frame
-        processed_frame = process_frame(frame)
-        
-        # Display the frame
-        frame_placeholder.image(processed_frame, channels="RGB", use_column_width=True)
-        
-        # Add a small delay to reduce CPU usage
-        time.sleep(0.01)
-    
-    # Release resources when stopped
-    cap.release()
-    
-    if reset_button:
-        cap = cv2.VideoCapture(camera_index)
+    # Add WebRTC streamer
+    webrtc_ctx = webrtc_streamer(
+        key="pose-detection",
+        mode=webrtc_streamer.WebRtcMode.SENDRECV,
+        video_processor_factory=PoseProcessor,
+        rtc_configuration={
+            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+        },
+        media_stream_constraints={"video": True, "audio": False},
+    )
     
     # Add instructions
     st.markdown("""
     ### Instructions:
-    1. Select your camera from the dropdown
-    2. Click 'Start' to begin the video feed
-    3. Click 'Stop' to pause
-    4. Click 'Reset Camera' if the feed freezes
+    1. Click the 'START' button above to begin the webcam feed
+    2. Allow camera access when prompted by your browser
+    3. Your pose will be detected and displayed in real-time
+    4. Click 'STOP' to end the session
     
-    If you don't see your camera feed:
-    - Try different camera indices from the dropdown
-    - Check if your camera is properly connected
-    - Make sure you've granted camera permissions to your browser
+    Note: Make sure your webcam is properly connected and you've granted camera permissions to your browser.
     """)
 
 if __name__ == "__main__":
