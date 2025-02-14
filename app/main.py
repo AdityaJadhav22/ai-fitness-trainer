@@ -7,7 +7,7 @@ import base64
 import cv2
 import mediapipe as mp
 import numpy as np
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+from streamlit_webrtc import webrtc_streamer
 import av
 
 # Must be the first Streamlit command
@@ -286,24 +286,27 @@ def local_css():
 
 # Initialize MediaPipe Pose
 mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_draw = mp.solutions.drawing_utils
 
-class PoseProcessor(VideoProcessorBase):
-    def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
+def video_frame_callback(frame):
+    img = frame.to_ndarray(format="bgr24")
+    
+    # Process the frame with MediaPipe Pose
+    with mp_pose.Pose(
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5) as pose:
         
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
-        # Process the frame and detect poses
+        # Process the frame
         results = pose.process(rgb_frame)
         
         # Draw pose landmarks
         if results.pose_landmarks:
             mp_draw.draw_landmarks(
-                rgb_frame, 
-                results.pose_landmarks, 
+                rgb_frame,
+                results.pose_landmarks,
                 mp_pose.POSE_CONNECTIONS,
                 mp_draw.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
                 mp_draw.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
@@ -410,10 +413,9 @@ def main():
     st.title("AI Fitness Trainer")
     
     # Add WebRTC streamer
-    webrtc_ctx = webrtc_streamer(
+    webrtc_streamer(
         key="pose-detection",
-        mode=webrtc_streamer.WebRtcMode.SENDRECV,
-        video_processor_factory=PoseProcessor,
+        video_frame_callback=video_frame_callback,
         rtc_configuration={
             "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
         },
