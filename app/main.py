@@ -1,7 +1,6 @@
 import streamlit as st
 import cv2
-import av
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+import numpy as np
 
 # Page config
 st.set_page_config(
@@ -10,58 +9,32 @@ st.set_page_config(
     layout="wide"
 )
 
-def video_frame_callback(frame):
-    """Simple callback that just returns the frame as is"""
-    return frame
-
 def main():
     st.title("AI Fitness Trainer 💪")
     
-    # Configure RTC with minimal STUN servers
-    rtc_configuration = RTCConfiguration(
-        {"iceServers": [
-            {"urls": ["stun:stun.l.google.com:19302"]}
-        ]}
-    )
-    
-    # Create columns for better layout
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        try:
-            webrtc_ctx = webrtc_streamer(
-                key="test-camera",
-                mode=WebRtcMode.SENDRECV,
-                rtc_configuration=rtc_configuration,
-                video_frame_callback=video_frame_callback,
-                media_stream_constraints={
-                    "video": {
-                        "width": {"ideal": 480},
-                        "height": {"ideal": 360},
-                        "frameRate": {"max": 10}
-                    },
-                    "audio": False
-                },
-                async_processing=False,
-            )
+        # Simple image upload for testing
+        uploaded_file = st.file_uploader("Choose an image...", type=['jpg', 'jpeg', 'png'])
+        
+        if uploaded_file is not None:
+            # Convert the file to an opencv image.
+            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+            image = cv2.imdecode(file_bytes, 1)
             
-            if webrtc_ctx.state.playing:
-                st.success("✅ Camera connected!")
-            else:
-                st.warning("⚠️ Click 'START' to begin")
-            
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-            st.info("Please check camera permissions")
+            # Display the image
+            st.image(image, channels="BGR", use_column_width=True)
+            st.success("✅ Image processed successfully!")
     
     with col2:
         st.markdown("""
         ### Basic Test
-        1. Click 'START'
-        2. Allow camera
-        3. Wait for connection
+        1. Upload an image
+        2. Wait for processing
+        3. See results
         
-        If this works, we'll add pose detection next.
+        Once this works, we'll add camera support.
         """)
 
 if __name__ == "__main__":

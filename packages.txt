@@ -9,3 +9,6 @@ libavutil-dev
 libswscale-dev
 libswresample-dev
 libavfilter-dev
+libopus-dev
+libvpx-dev
+python3-dev
