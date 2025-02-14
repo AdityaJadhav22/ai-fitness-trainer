@@ -289,17 +289,14 @@ mp_draw = mp.solutions.drawing_utils
 
 def initialize_camera():
     try:
-        # First try to use the default camera
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            # If default camera fails, try alternative index
-            cap = cv2.VideoCapture(-1)
+        # Try different camera indices
+        for index in [0, 1, -1]:
+            cap = cv2.VideoCapture(index)
+            if cap.isOpened():
+                return cap
         
-        if not cap.isOpened():
-            st.error("Failed to access camera! Please check your camera permissions.")
-            return None
-            
-        return cap
+        st.error("No camera found! Please check your camera connection.")
+        return None
     except Exception as e:
         st.error(f"Error accessing camera: {str(e)}")
         return None
@@ -316,7 +313,9 @@ def process_frame(frame):
         mp_draw.draw_landmarks(
             rgb_frame, 
             results.pose_landmarks, 
-            mp_pose.POSE_CONNECTIONS
+            mp_pose.POSE_CONNECTIONS,
+            mp_draw.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=2),
+            mp_draw.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
         )
     
     return rgb_frame
@@ -418,19 +417,30 @@ def add_bg_from_local():
 def main():
     st.title("AI Fitness Trainer")
     
-    # Initialize camera
-    cap = initialize_camera()
+    # Add a camera selector
+    camera_index = st.selectbox("Select Camera", options=[0, 1, 2, 3], index=0)
     
-    if cap is None:
-        st.warning("Camera not available. Please check permissions.")
+    # Initialize camera with selected index
+    cap = cv2.VideoCapture(camera_index)
+    
+    if not cap.isOpened():
+        st.error(f"Could not open camera {camera_index}")
+        st.info("Please try a different camera index")
         return
     
     # Create a placeholder for the video feed
     frame_placeholder = st.empty()
     
-    stop_button = st.button("Stop")
+    # Add control buttons
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        start_button = st.button("Start")
+    with col2:
+        stop_button = st.button("Stop")
+    with col3:
+        reset_button = st.button("Reset Camera")
     
-    while not stop_button:
+    while start_button and not stop_button:
         ret, frame = cap.read()
         
         if not ret:
@@ -441,13 +451,30 @@ def main():
         processed_frame = process_frame(frame)
         
         # Display the frame
-        frame_placeholder.image(processed_frame, channels="RGB")
+        frame_placeholder.image(processed_frame, channels="RGB", use_column_width=True)
         
         # Add a small delay to reduce CPU usage
         time.sleep(0.01)
     
-    # Release resources
+    # Release resources when stopped
     cap.release()
+    
+    if reset_button:
+        cap = cv2.VideoCapture(camera_index)
+    
+    # Add instructions
+    st.markdown("""
+    ### Instructions:
+    1. Select your camera from the dropdown
+    2. Click 'Start' to begin the video feed
+    3. Click 'Stop' to pause
+    4. Click 'Reset Camera' if the feed freezes
+    
+    If you don't see your camera feed:
+    - Try different camera indices from the dropdown
+    - Check if your camera is properly connected
+    - Make sure you've granted camera permissions to your browser
+    """)
 
 if __name__ == "__main__":
     main()
