@@ -1,0 +1,211 @@
+/* Mobile-First Dark Theme */
+:root {
+    --primary-color: #FF4B2B;
+    --secondary-color: #FF416C;
+    --dark-bg: rgba(13, 17, 23, 0.95);
+    --card-bg: rgba(22, 27, 34, 0.8);
+    --text-primary: #ffffff;
+    --text-secondary: #8b949e;
+    --accent-gradient: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+}
+
+/* Global Styles */
+.stApp {
+    background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+}
+
+/* Main Container */
+.main-container {
+    padding: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Hero Section */
+.hero-section {
+    text-align: center;
+    padding: 2rem 1rem;
+    margin: -1rem -1rem 1rem -1rem;
+    background: var(--accent-gradient);
+    border-radius: 0 0 20px 20px;
+}
+
+.hero-section h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0.5rem 0 0 0;
+}
+
+/* Mobile Grid */
+.mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.feature-card {
+    background: var(--card-bg);
+    padding: 1rem;
+    border-radius: 15px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.feature-card:active {
+    transform: scale(0.98);
+}
+
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.feature-card h3 {
+    font-size: 1rem;
+    margin: 0.5rem 0;
+    color: var(--primary-color);
+}
+
+.feature-card p {
+    font-size: 0.8rem;
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+/* Mobile Buttons */
+.mobile-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.mobile-button {
+    display: block;
+    padding: 1rem;
+    border-radius: 12px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: transform 0.2s;
+}
+
+.mobile-button:active {
+    transform: scale(0.98);
+}
+
+.mobile-button.primary {
+    background: var(--accent-gradient);
+    color: white;
+}
+
+.mobile-button.secondary {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Stats Cards */
+.stats-card {
+    background: var(--card-bg);
+    padding: 1rem;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+.stats-card h3 {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+}
+
+.stats-card h2 {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+/* Mobile-friendly table */
+.dataframe {
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+/* Streamlit specific mobile optimizations */
+.stButton button {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
+}
+
+.stRadio > div {
+    background: var(--card-bg);
+    padding: 0.75rem;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+}
+
+/* Hide default Streamlit elements on mobile */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .main-container {
+        padding: 0.5rem;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .feature-card {
+        padding: 0.75rem;
+    }
+    
+    .mobile-button {
+        padding: 0.875rem;
+    }
+}
+
+/* Sidebar Styling */
+.css-1d391kg {
+    background: var(--dark-bg);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--dark-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-gradient);
+    border-radius: 4px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.main-container {
+    animation: fadeIn 0.8s ease-out;
+} 
