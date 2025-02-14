@@ -3,6 +3,7 @@ from pathlib import Path
 import time
 from datetime import datetime
 import os
+import base64
 
 # Must be the first Streamlit command
 st.set_page_config(
@@ -14,7 +15,6 @@ st.set_page_config(
 
 import cv2
 import sys
-import base64
 
 # Add the project root directory to Python path
 current_dir = Path(__file__).parent

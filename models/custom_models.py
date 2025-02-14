@@ -1,7 +1,6 @@
-import tensorflow as tf  # or import torch (depending on your model type)
-import numpy as np
 import cv2
 import mediapipe as mp
+import numpy as np
 import time
 
 class BicepModel:
