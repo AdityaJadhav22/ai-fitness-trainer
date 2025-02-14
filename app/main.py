@@ -4,6 +4,9 @@ import time
 from datetime import datetime
 import os
 import base64
+import cv2
+import mediapipe as mp
+import numpy as np
 
 # Must be the first Streamlit command
 st.set_page_config(
@@ -13,7 +16,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-import cv2
 import sys
 
 # Add the project root directory to Python path
@@ -280,14 +282,44 @@ def local_css():
     </style>
     """, unsafe_allow_html=True)
 
+# Initialize MediaPipe Pose
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+mp_draw = mp.solutions.drawing_utils
+
 def initialize_camera():
     try:
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        if cap.isOpened():
-            return cap
+        # First try to use the default camera
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            # If default camera fails, try alternative index
+            cap = cv2.VideoCapture(-1)
+        
+        if not cap.isOpened():
+            st.error("Failed to access camera! Please check your camera permissions.")
+            return None
+            
+        return cap
     except Exception as e:
-        st.error(f"Camera initialization error: {e}")
-    return None
+        st.error(f"Error accessing camera: {str(e)}")
+        return None
+
+def process_frame(frame):
+    # Convert BGR to RGB
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    
+    # Process the frame and detect poses
+    results = pose.process(rgb_frame)
+    
+    # Draw pose landmarks
+    if results.pose_landmarks:
+        mp_draw.draw_landmarks(
+            rgb_frame, 
+            results.pose_landmarks, 
+            mp_pose.POSE_CONNECTIONS
+        )
+    
+    return rgb_frame
 
 def format_time(seconds):
     """Convert seconds to MM:SS format"""
@@ -384,154 +416,38 @@ def add_bg_from_local():
     )
 
 def main():
-    # Initialize session state
-    if 'user_name' not in st.session_state:
-        st.session_state.user_name = ""
-    if 'workout_history' not in st.session_state:
-        st.session_state.workout_history = []
-    if 'page' not in st.session_state:
-        st.session_state.page = 'home'
-
-    # Hero Section
-    st.markdown("""
-        <div class="hero-section">
-            <h1>AI FITNESS</h1>
-            <p class="subtitle">Your Personal AI Trainer</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.title("AI Fitness Trainer")
     
-    # Feature Cards
-    col1, col2 = st.columns(2)
+    # Initialize camera
+    cap = initialize_camera()
     
-    with col1:
-        st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">🎯</div>
-                <h3>Form Check</h3>
-                <p>Real-time feedback</p>
-            </div>
-        """, unsafe_allow_html=True)
+    if cap is None:
+        st.warning("Camera not available. Please check permissions.")
+        return
     
-    with col2:
-        st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">📊</div>
-                <h3>Progress</h3>
-                <p>Track your gains</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    col3, col4 = st.columns(2)
+    # Create a placeholder for the video feed
+    frame_placeholder = st.empty()
     
-    with col3:
-        st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">🔥</div>
-                <h3>Calories</h3>
-                <p>Track burned</p>
-            </div>
-        """, unsafe_allow_html=True)
+    stop_button = st.button("Stop")
     
-    with col4:
-        st.markdown("""
-            <div class="feature-card">
-                <div class="feature-icon">📱</div>
-                <h3>Exercises</h3>
-                <p>Multiple types</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # Navigation Buttons
-    st.markdown("<br>", unsafe_allow_html=True)
+    while not stop_button:
+        ret, frame = cap.read()
+        
+        if not ret:
+            st.error("Failed to read from camera!")
+            break
+            
+        # Process the frame
+        processed_frame = process_frame(frame)
+        
+        # Display the frame
+        frame_placeholder.image(processed_frame, channels="RGB")
+        
+        # Add a small delay to reduce CPU usage
+        time.sleep(0.01)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("Start Workout", use_container_width=True, key="start_workout"):
-            st.switch_page("pages/1_Workout.py")
-    
-    with col2:
-        if st.button("View History", use_container_width=True, key="view_history"):
-            st.switch_page("pages/2_History.py")
-
-    # Custom CSS
-    st.markdown("""
-        <style>
-        /* Hero Section */
-        .hero-section {
-            text-align: center;
-            padding: 2rem 1rem;
-            margin: -1rem -1rem 1rem -1rem;
-            background: linear-gradient(45deg, #FF4B2B, #FF416C);
-            border-radius: 0 0 20px 20px;
-        }
-        
-        .hero-section h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin: 0;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .subtitle {
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.9);
-            margin: 0.5rem 0 0 0;
-        }
-        
-        /* Feature Cards */
-        .feature-card {
-            background: rgba(22, 27, 34, 0.8);
-            padding: 1rem;
-            border-radius: 15px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 0.75rem;
-        }
-        
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .feature-card h3 {
-            font-size: 1rem;
-            margin: 0.5rem 0;
-            color: #FF4B2B;
-        }
-        
-        .feature-card p {
-            font-size: 0.8rem;
-            margin: 0;
-            color: #8b949e;
-        }
-        
-        /* Button Styling */
-        .stButton button {
-            background: linear-gradient(45deg, #FF4B2B, #FF416C);
-            color: white;
-            border: none;
-            padding: 0.75rem;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-        
-        .stButton button:hover {
-            transform: translateY(-2px);
-        }
-        
-        .stButton button:active {
-            transform: scale(0.98);
-        }
-        
-        /* Hide default Streamlit elements */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        </style>
-    """, unsafe_allow_html=True)
+    # Release resources
+    cap.release()
 
 if __name__ == "__main__":
     main()
