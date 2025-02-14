@@ -3,6 +3,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+import av
 
 # Page config
 st.set_page_config(
@@ -11,18 +12,32 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize MediaPipe Pose
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-    model_complexity=0  # Use simplest model for better performance
-)
-
 def video_frame_callback(frame):
     try:
         img = frame.to_ndarray(format="bgr24")
-        return frame
+        
+        # Initialize pose detection only when processing frames
+        with mp.solutions.pose.Pose(
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+            model_complexity=0
+        ) as pose:
+            # Convert to RGB
+            rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            # Process the frame
+            results = pose.process(rgb_frame)
+            
+            # Draw landmarks if detected
+            if results.pose_landmarks:
+                mp.solutions.drawing_utils.draw_landmarks(
+                    rgb_frame,
+                    results.pose_landmarks,
+                    mp.solutions.pose.POSE_CONNECTIONS
+                )
+            
+            # Convert back to BGR
+            output_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+            return av.VideoFrame.from_ndarray(output_frame, format="bgr24")
     except Exception as e:
         st.error(f"Error processing frame: {str(e)}")
         return frame
@@ -36,18 +51,11 @@ def main():
             {"urls": "stun:stun.l.google.com:19302"},
             {"urls": "stun:stun1.l.google.com:19302"},
             {"urls": "stun:stun2.l.google.com:19302"},
-            {"urls": "stun:stun3.l.google.com:19302"},
-            {"urls": "stun:stun4.l.google.com:19302"},
             {
                 "urls": "turn:openrelay.metered.ca:80",
                 "username": "openrelayproject",
                 "credential": "openrelayproject",
-            },
-            {
-                "urls": "turn:openrelay.metered.ca:443",
-                "username": "openrelayproject",
-                "credential": "openrelayproject",
-            },
+            }
         ]}
     )
     
@@ -65,20 +73,17 @@ def main():
                     "video": {
                         "width": {"ideal": 640},
                         "height": {"ideal": 480},
-                        "frameRate": {"ideal": 15, "max": 30}
+                        "frameRate": {"max": 15}
                     },
                     "audio": False
                 },
                 async_processing=True,
-                video_html_attrs={
-                    "style": {"width": "100%", "margin": "0 auto", "border": "2px solid red"},
-                    "controls": False,
-                    "autoPlay": True,
-                },
             )
             
-            if not webrtc_ctx.state.playing:
-                st.warning("⚠️ Camera stream not started. Click 'START' to begin.")
+            if webrtc_ctx.state.playing:
+                st.success("✅ Camera connected successfully!")
+            else:
+                st.warning("⚠️ Click 'START' to begin camera stream")
             
         except Exception as e:
             st.error(f"Error initializing camera: {str(e)}")
