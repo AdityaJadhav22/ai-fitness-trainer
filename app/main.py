@@ -7,15 +7,14 @@ import base64
 import cv2
 import mediapipe as mp
 import numpy as np
-from streamlit_webrtc import webrtc_streamer
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 import av
 
 # Must be the first Streamlit command
 st.set_page_config(
     page_title="AI Fitness Trainer",
-    page_icon="🏋️‍♂️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    page_icon="💪",
+    layout="wide"
 )
 
 import sys
@@ -288,13 +287,19 @@ def local_css():
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
+# Create a pose detection instance
+pose = mp_pose.Pose(
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
+    model_complexity=1  # Use a simpler model for better performance
+)
+
 def video_frame_callback(frame):
-    img = frame.to_ndarray(format="bgr24")
-    
-    # Process the frame with MediaPipe Pose
-    with mp_pose.Pose(
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5) as pose:
+    try:
+        img = frame.to_ndarray(format="bgr24")
+        
+        # Flip the frame horizontally for a later selfie-view display
+        img = cv2.flip(img, 1)
         
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -313,7 +318,13 @@ def video_frame_callback(frame):
             )
         
         # Convert back to BGR for display
-        return av.VideoFrame.from_ndarray(cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR), format="bgr24")
+        return av.VideoFrame.from_ndarray(
+            cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR),
+            format="bgr24"
+        )
+    except Exception as e:
+        st.error(f"Error processing video frame: {str(e)}")
+        return None
 
 def format_time(seconds):
     """Convert seconds to MM:SS format"""
@@ -410,28 +421,69 @@ def add_bg_from_local():
     )
 
 def main():
-    st.title("AI Fitness Trainer")
+    st.title("AI Fitness Trainer 💪")
     
-    # Add WebRTC streamer
-    webrtc_streamer(
-        key="pose-detection",
-        video_frame_callback=video_frame_callback,
-        rtc_configuration={
-            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-        },
-        media_stream_constraints={"video": True, "audio": False},
+    # Add a sidebar
+    with st.sidebar:
+        st.header("Settings")
+        st.write("Adjust your camera settings here")
+        
+        # Add quality options
+        quality = st.select_slider(
+            "Video Quality",
+            options=["Low", "Medium", "High"],
+            value="Medium"
+        )
+
+    # Configure RTC
+    rtc_configuration = RTCConfiguration(
+        {"iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+            {"urls": ["stun:stun2.l.google.com:19302"]}
+        ]}
     )
     
-    # Add instructions
-    st.markdown("""
-    ### Instructions:
-    1. Click the 'START' button above to begin the webcam feed
-    2. Allow camera access when prompted by your browser
-    3. Your pose will be detected and displayed in real-time
-    4. Click 'STOP' to end the session
+    # Create columns for better layout
+    col1, col2 = st.columns([3, 1])
     
-    Note: Make sure your webcam is properly connected and you've granted camera permissions to your browser.
-    """)
+    with col1:
+        # Add WebRTC streamer with error handling
+        try:
+            webrtc_ctx = webrtc_streamer(
+                key="pose-detection",
+                mode=WebRtcMode.SENDRECV,
+                rtc_configuration=rtc_configuration,
+                video_frame_callback=video_frame_callback,
+                media_stream_constraints={
+                    "video": {
+                        "width": {"ideal": 1280 if quality == "High" else 640},
+                        "height": {"ideal": 720 if quality == "High" else 480},
+                        "frameRate": {"ideal": 30 if quality == "High" else 20}
+                    },
+                    "audio": False
+                },
+                async_processing=True
+            )
+        except Exception as e:
+            st.error(f"Error initializing camera: {str(e)}")
+            st.info("Please check your camera permissions and try again.")
+    
+    with col2:
+        # Add instructions
+        st.markdown("""
+        ### Instructions:
+        1. Click 'START' to begin
+        2. Allow camera access
+        3. Adjust quality if needed
+        4. Click 'STOP' when done
+        
+        ### Troubleshooting:
+        - Ensure camera permissions
+        - Try refreshing the page
+        - Lower quality if laggy
+        - Check internet connection
+        """)
 
 if __name__ == "__main__":
     main()
